@@ -6,7 +6,9 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-# ==================== 基础配置 ====================
+# ==================================================
+# 1. 基础配置
+# ==================================================
 
 load_dotenv()
 
@@ -17,10 +19,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ==================== CSS ====================
+# ==================================================
+# 2. 页面样式
+# ==================================================
 
 st.markdown("""
 <style>
+
 .stApp {
     background-color: #0b1220;
     color: #e5edf7;
@@ -36,7 +41,7 @@ st.markdown("""
 }
 
 .main .block-container {
-    max-width: 1200px;
+    max-width: 1400px;
     padding-top: 2rem;
     padding-bottom: 3rem;
 }
@@ -135,25 +140,20 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
     color: #35b9ed;
 }
 
-.answer-box {
-    background: #13243a;
-    border-left: 4px solid #16a5df;
-    border-radius: 8px;
-    padding: 18px;
-    margin-top: 15px;
-}
-
 .footer {
     color: #71869f;
     text-align: center;
     font-size: 12px;
     padding-top: 25px;
 }
+
 </style>
 """, unsafe_allow_html=True)
 
 
-# ==================== API 初始化 ====================
+# ==================================================
+# 3. Gemini API 初始化
+# ==================================================
 
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
@@ -169,7 +169,9 @@ client = genai.Client(api_key=api_key)
 MODEL_NAME = "gemini-3.5-flash"
 
 
-# ==================== AI 请求函数 ====================
+# ==================================================
+# 4. AI 请求函数：自动重试
+# ==================================================
 
 def generate_with_retry(contents, max_retries=3):
 
@@ -190,20 +192,25 @@ def generate_with_retry(contents, max_retries=3):
 
             error_message = str(e).upper()
 
-            # 服务器繁忙或暂时不可用
-            if (
+            temporary_error = (
                 "503" in error_message
                 or "UNAVAILABLE" in error_message
                 or "429" in error_message
                 or "RESOURCE_EXHAUSTED" in error_message
-            ):
+                or "500" in error_message
+                or "INTERNAL" in error_message
+            )
+
+            if temporary_error:
 
                 if attempt < max_retries - 1:
+
                     wait_time = 2 * (attempt + 1)
 
                     time.sleep(wait_time)
 
                 else:
+
                     raise Exception(
                         "Gemini 服务器暂时繁忙或请求次数达到限制。"
                         "请稍后再试。"
@@ -213,75 +220,152 @@ def generate_with_retry(contents, max_retries=3):
                 raise e
 
 
-# ==================== 侧边栏 ====================
+# ==================================================
+# 5. 双语答案显示函数
+# ==================================================
+
+def display_bilingual_answer(answer):
+
+    zh_marker = "【中文回答】"
+    vi_marker = "【越南语回答】"
+
+    if zh_marker in answer and vi_marker in answer:
+
+        parts = answer.split(vi_marker, 1)
+
+        chinese_text = parts[0].replace(
+            zh_marker, ""
+        ).strip()
+
+        vietnamese_text = parts[1].strip()
+
+        col1, col2 = st.columns(2, gap="medium")
+
+        with col1:
+
+            st.markdown("### 🇨🇳 中文回答")
+
+            with st.container(border=True):
+                st.markdown(chinese_text)
+
+        with col2:
+
+            st.markdown("### 🇻🇳 Trả lời tiếng Việt")
+
+            with st.container(border=True):
+                st.markdown(vietnamese_text)
+
+    else:
+
+        st.warning(
+            "AI 未能按照双语格式返回，以下显示原始回答："
+        )
+
+        st.markdown(answer)
+
+
+# ==================================================
+# 6. 侧边栏
+# ==================================================
 
 with st.sidebar:
 
     st.markdown("## ⚡ 电力智能实验室")
+
     st.caption("POWER GRID AI ASSISTANT")
 
     st.divider()
 
     st.markdown("### 系统导航")
+
     st.markdown("💬  智能问答")
+
     st.markdown("📷  图片题目求解")
 
     st.divider()
 
-    st.markdown("### 系统状态")
+    st.markdown("### 系统信息")
+
     st.success("API 密钥已加载")
+
     st.caption("当前模型：Gemini 3.5 Flash")
-    st.caption("AI 服务：按需连接")
+
+    st.caption("回答语言：简体中文 + 越南语")
+
+    st.caption("服务状态：按需连接")
 
     st.divider()
 
     st.caption("配电网自动化技术")
+
     st.caption("课程设计项目 · 2026")
 
 
-# ==================== 首页 ====================
+# ==================================================
+# 7. 首页
+# ==================================================
 
 st.markdown("""
 <div class="hero">
+
     <h1>⚡ 配电网自动化技术智能体</h1>
+
     <p>专业知识问答 · 图片识别 · 智能分析 · 辅助学习</p>
+
     <p>POWER DISTRIBUTION AUTOMATION INTELLIGENT SYSTEM</p>
+
 </div>
 """, unsafe_allow_html=True)
 
 
-# ==================== 信息卡片 ====================
+# ==================================================
+# 8. 信息卡片
+# ==================================================
 
 c1, c2, c3 = st.columns(3)
 
 with c1:
+
     st.markdown("""
     <div class="info-card">
+
         <div class="info-title">系统功能</div>
+
         <div class="info-value">智能知识问答</div>
+
     </div>
     """, unsafe_allow_html=True)
 
 with c2:
+
     st.markdown("""
     <div class="info-card">
+
         <div class="info-title">图像处理</div>
+
         <div class="info-value">题目识别与求解</div>
+
     </div>
     """, unsafe_allow_html=True)
 
 with c3:
+
     st.markdown("""
     <div class="info-card">
+
         <div class="info-title">AI 服务</div>
+
         <div class="info-value">Gemini AI</div>
+
     </div>
     """, unsafe_allow_html=True)
 
 st.write("")
 
 
-# ==================== 功能区域 ====================
+# ==================================================
+# 9. 功能区域
+# ==================================================
 
 tab1, tab2 = st.tabs([
     "💬  智能问答",
@@ -289,7 +373,9 @@ tab1, tab2 = st.tabs([
 ])
 
 
-# ==================== 智能问答 ====================
+# ==================================================
+# 10. 智能问答
+# ==================================================
 
 with tab1:
 
@@ -319,12 +405,35 @@ with tab1:
 
                     prompt = (
                         "你是一名专业的配电网自动化技术助手。"
-                        "请使用简体中文回答。"
+
+                        "请使用简体中文和越南语双语回答。"
+
+                        "必须严格按照以下格式输出："
+
+                        "【中文回答】"
+
+                        "第一部分：用简体中文完整回答问题。"
+
+                        "第二部分：详细解释专业知识和原理。"
+
+                        "第三部分：如果涉及计算，请列出公式、"
+                        "已知条件、计算步骤和结果。"
+
+                        "【越南语回答】"
+
+                        "将以上全部内容准确翻译成越南语。"
+
+                        "两种语言的内容必须完整对应，"
+                        "不能省略重要信息。"
+
                         "要求专业、准确、容易理解。"
+
                         "注意区分光纤通信和光伏发电等专业术语。"
-                        "涉及计算时，请列出公式、已知条件、计算步骤和结果。"
+
                         "如果问题存在条件不足，请明确说明。"
+
                         "\n\n用户问题："
+
                         + question
                     )
 
@@ -332,17 +441,7 @@ with tab1:
 
                     st.markdown("### 📘 AI 分析结果")
 
-                    st.markdown(
-                        '<div class="answer-box">',
-                        unsafe_allow_html=True
-                    )
-
-                    st.markdown(response.text)
-
-                    st.markdown(
-                        '</div>',
-                        unsafe_allow_html=True
-                    )
+                    display_bilingual_answer(response.text)
 
                 except Exception as e:
 
@@ -351,10 +450,13 @@ with tab1:
                     st.warning(str(e))
 
         else:
+
             st.warning("请先输入问题！")
 
 
-# ==================== 图片题目求解 ====================
+# ==================================================
+# 11. 图片题目求解
+# ==================================================
 
 with tab2:
 
@@ -394,12 +496,33 @@ with tab2:
                     )
 
                     prompt = (
-                        "请识别图片中的题目，并使用简体中文解答。"
-                        "先准确提取题目内容，再分析已知条件。"
-                        "然后逐步说明解题思路、相关公式和计算过程。"
+
+                        "请识别图片中的题目，"
+                        "并使用简体中文和越南语双语解答。"
+
+                        "必须严格按照以下格式输出："
+
+                        "【中文回答】"
+
+                        "第一部分：准确提取图片中的题目内容。"
+
+                        "第二部分：分析已知条件。"
+
+                        "第三部分：逐步说明解题思路、"
+                        "相关公式和计算过程。"
+
+                        "第四部分：给出明确答案。"
+
+                        "【越南语回答】"
+
+                        "将以上全部内容准确翻译成越南语。"
+
+                        "两种语言的公式、数据、单位和计算结果"
+                        "必须保持一致。"
+
                         "涉及电路图时，请分析元件连接关系。"
-                        "最后给出明确答案。"
-                        "如果图片模糊或信息不足，请指出。"
+
+                        "如果图片模糊或信息不足，请明确指出。"
                     )
 
                     response = generate_with_retry(
@@ -411,17 +534,7 @@ with tab2:
 
                     st.markdown("### 📝 题目分析与解答")
 
-                    st.markdown(
-                        '<div class="answer-box">',
-                        unsafe_allow_html=True
-                    )
-
-                    st.markdown(response.text)
-
-                    st.markdown(
-                        '</div>',
-                        unsafe_allow_html=True
-                    )
+                    display_bilingual_answer(response.text)
 
                 except Exception as e:
 
@@ -430,11 +543,18 @@ with tab2:
                     st.warning(str(e))
 
 
-# ==================== 页脚 ====================
+# ==================================================
+# 12. 页脚
+# ==================================================
 
 st.markdown("""
 <div class="footer">
-    配电网自动化技术智能体 | POWER GRID AI ASSISTANT<br>
+
+    配电网自动化技术智能体 | POWER GRID AI ASSISTANT
+
+    <br>
+
     课程设计项目 · 智能化电力技术学习平台
+
 </div>
 """, unsafe_allow_html=True)

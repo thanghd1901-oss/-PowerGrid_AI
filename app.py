@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+
 # ==================================================
 # 1. 基础配置
 # ==================================================
@@ -19,12 +20,20 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# 当前使用的 Gemini 模型
+MODEL_NAME = "gemini-3.5-flash"
+
+# API 请求最多尝试 3 次
+MAX_RETRIES = 3
+
+
 # ==================================================
 # 2. 页面样式
 # ==================================================
 
 st.markdown("""
 <style>
+
 .stApp {
     background-color: #0b1220;
     color: #e5edf7;
@@ -47,26 +56,6 @@ st.markdown("""
 
 h1, h2, h3 {
     color: #e9f3ff;
-}
-
-.info-card {
-    background: #142137;
-    border: 1px solid #263d5b;
-    border-radius: 14px;
-    padding: 18px;
-    min-height: 105px;
-}
-
-.info-title {
-    color: #91a9c5;
-    font-size: 13px;
-}
-
-.info-value {
-    color: #ffffff;
-    font-size: 21px;
-    font-weight: 650;
-    margin-top: 9px;
 }
 
 .stTextArea textarea {
@@ -115,19 +104,6 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
     color: #35b9ed;
 }
 
-.answer-panel {
-    background-color: #13243a;
-    border: 1px solid #263d5b;
-    border-radius: 12px;
-    padding: 18px;
-}
-
-.footer {
-    color: #71869f;
-    text-align: center;
-    font-size: 12px;
-    padding-top: 25px;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -137,43 +113,61 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
 # ==================================================
 
 try:
-    api_key = st.secrets["GEMINI_API_KEY"]
+    api_key = st.secrets.get("GEMINI_API_KEY", None)
 except Exception:
+    api_key = None
+
+if not api_key:
     api_key = os.getenv("GEMINI_API_KEY")
 
 if not api_key:
-    st.error("未找到 API 密钥，请检查 Streamlit Secrets 设置。")
+    st.error(
+        "未找到 API 密钥，请检查 Streamlit Secrets 或 .env 文件。"
+    )
     st.stop()
 
-client = genai.Client(api_key=api_key)
-
-MODEL_NAME = "gemini-3.5-flash"
+try:
+    client = genai.Client(api_key=api_key)
+except Exception as e:
+    st.error("Gemini API 初始化失败")
+    st.code(str(e))
+    st.stop()
 
 
 # ==================================================
-# 4. AI 请求函数：自动重试
+# 4. AI 请求函数：自动重试并保留原始错误
 # ==================================================
 
-def generate_with_retry(contents, max_retries=3):
+def generate_with_retry(contents, max_retries=MAX_RETRIES):
+
+    last_error = None
 
     for attempt in range(max_retries):
 
         try:
+
             response = client.models.generate_content(
                 model=MODEL_NAME,
                 contents=contents
             )
 
-            if not response or not response.text:
-                raise Exception("AI 未返回有效内容，请重新尝试。")
+            if response is None:
+                raise RuntimeError("Gemini 未返回响应。")
+
+            if not response.text:
+                raise RuntimeError(
+                    "Gemini 返回了响应，但没有有效文本内容。"
+                )
 
             return response
 
         except Exception as e:
 
+            last_error = e
             error_message = str(e).upper()
 
-            temporary_error = (
+            # 判断是否属于可以重试的临时错误
+            retryable = (
                 "503" in error_message
                 or "UNAVAILABLE" in error_message
                 or "429" in error_message
@@ -182,20 +176,31 @@ def generate_with_retry(contents, max_retries=3):
                 or "INTERNAL" in error_message
             )
 
-            if temporary_error:
+            # 其他错误直接返回，不进行无意义重试
+            if not retryable:
+                raise
 
-                if attempt < max_retries - 1:
-                    wait_time = 2 * (attempt + 1)
-                    time.sleep(wait_time)
+            # 已经达到最大尝试次数
+            if attempt == max_retries - 1:
+                break
 
-                else:
-                    raise Exception(
-                        "Gemini 服务器暂时繁忙或请求次数达到限制，"
-                        "请稍后再试。"
-                    )
+            # 指数退避：第一次等待 2 秒，第二次等待 4 秒
+            wait_time = 2 ** (attempt + 1)
 
-            else:
-                raise e
+            st.warning(
+                f"Gemini 服务暂时不可用，"
+                f"第 {attempt + 1} 次请求失败。"
+                f"将在 {wait_time} 秒后重试。"
+            )
+
+            time.sleep(wait_time)
+
+    # 保留 Gemini 返回的原始错误
+    raise RuntimeError(
+        f"Gemini API 请求失败，"
+        f"共尝试 {max_retries} 次。\n\n"
+        f"原始错误：{last_error}"
+    ) from last_error
 
 
 # ==================================================
@@ -220,12 +225,14 @@ def display_bilingual_answer(answer):
         col1, col2 = st.columns(2, gap="medium")
 
         with col1:
+
             st.markdown("### 🇨🇳 中文回答")
 
             with st.container(border=True):
                 st.markdown(chinese_text)
 
         with col2:
+
             st.markdown("### 🇻🇳 Trả lời tiếng Việt")
 
             with st.container(border=True):
@@ -234,7 +241,7 @@ def display_bilingual_answer(answer):
     else:
 
         st.warning(
-            "AI 未能按照双语格式返回，以下显示原始回答："
+            "AI 未按照指定的双语格式返回，以下显示原始回答："
         )
 
         st.markdown(answer)
@@ -262,7 +269,7 @@ with st.sidebar:
 
     st.success("API 密钥已加载")
 
-    st.caption("当前模型：Gemini 3.5 Flash")
+    st.caption(f"当前模型：{MODEL_NAME}")
     st.caption("回答语言：简体中文 + 越南语")
     st.caption("服务状态：按需连接")
 
@@ -290,28 +297,35 @@ with st.container(border=True):
 
 
 # ==================================================
-# 8. 系统功能卡片
+# 8. 系统功能介绍
 # ==================================================
 
-c1, c2, c3 = st.columns(3)
+col1, col2, col3 = st.columns(3)
 
-with c1:
+with col1:
+
     with st.container(border=True):
+
         st.caption("系统功能")
         st.subheader("智能知识问答")
         st.write("💬 专业知识咨询")
 
-with c2:
+with col2:
+
     with st.container(border=True):
+
         st.caption("图像处理")
         st.subheader("题目识别与求解")
         st.write("📷 图片上传与分析")
 
-with c3:
+with col3:
+
     with st.container(border=True):
+
         st.caption("AI 服务")
         st.subheader("Gemini AI")
         st.write("⚡ 智能分析引擎")
+
 
 st.write("")
 
@@ -342,7 +356,8 @@ with tab1:
         "问题内容",
         placeholder="例如：什么是馈线自动化？它是如何实现故障隔离的？",
         height=130,
-        label_visibility="collapsed"
+        label_visibility="collapsed",
+        key="question_input"
     )
 
     if st.button("🚀 发送问题", key="ask_button"):
@@ -355,20 +370,26 @@ with tab1:
 
                     prompt = (
                         "你是一名专业的配电网自动化技术助手。"
+
                         "请使用简体中文和越南语双语回答。"
+
                         "必须严格按照以下格式输出："
+
                         "【中文回答】"
                         "先用简体中文完整回答问题。"
                         "解释相关专业知识、工作原理和应用。"
                         "涉及计算时，请列出公式、已知条件、"
                         "计算步骤和结果。"
+
                         "【越南语回答】"
                         "将中文内容完整、准确地翻译成越南语。"
                         "两种语言的内容必须完整对应，"
                         "公式、数据和计算结果必须一致。"
+
                         "要求专业、准确、容易理解。"
                         "注意区分光纤通信和光伏发电等专业术语。"
                         "如果问题存在条件不足，请明确说明。"
+
                         "\n\n用户问题："
                         + question
                     )
@@ -382,7 +403,12 @@ with tab1:
                 except Exception as e:
 
                     st.error("AI 请求失败")
-                    st.warning(str(e))
+
+                    st.error(
+                        "以下是原始错误信息，请根据错误代码检查 API。"
+                    )
+
+                    st.code(str(e))
 
         else:
 
@@ -401,46 +427,58 @@ with tab2:
         "上传电气工程或配电网自动化相关题目图片，AI 将识别并分析。"
     )
 
-    image = st.file_uploader(
+    uploaded_image = st.file_uploader(
         "上传题目图片",
         type=["png", "jpg", "jpeg"],
         help="支持 PNG、JPG、JPEG 格式",
-        label_visibility="collapsed"
+        label_visibility="collapsed",
+        key="image_uploader"
     )
 
-    if image is not None:
+    if uploaded_image is not None:
 
         st.image(
-            image,
+            uploaded_image,
             caption="题目预览",
             use_container_width=True
         )
 
-        if st.button("🔍 开始识别与解答", key="image_button"):
+        if st.button(
+            "🔍 开始识别与解答",
+            key="image_button"
+        ):
 
-            with st.spinner("AI 正在识别图片并分析题目..."):
+            with st.spinner(
+                "AI 正在识别图片并分析题目..."
+            ):
 
                 try:
 
                     image_part = types.Part.from_bytes(
-                        data=image.getvalue(),
-                        mime_type=image.type
+                        data=uploaded_image.getvalue(),
+                        mime_type=uploaded_image.type
                     )
 
                     prompt = (
                         "请识别图片中的题目，"
                         "并使用简体中文和越南语双语解答。"
+
                         "必须严格按照以下格式输出："
+
                         "【中文回答】"
+
                         "第一部分：准确提取图片中的题目内容。"
                         "第二部分：分析已知条件。"
                         "第三部分：逐步说明解题思路、"
                         "相关公式和计算过程。"
                         "第四部分：给出明确答案。"
+
                         "【越南语回答】"
+
                         "将以上全部内容准确翻译成越南语。"
                         "两种语言的公式、数据、单位和计算结果"
                         "必须保持一致。"
+
                         "涉及电路图时，请分析元件连接关系。"
                         "如果图片模糊或信息不足，请明确指出。"
                     )
@@ -459,7 +497,12 @@ with tab2:
                 except Exception as e:
 
                     st.error("图片识别失败")
-                    st.warning(str(e))
+
+                    st.error(
+                        "以下是原始错误信息，请根据错误代码检查 API。"
+                    )
+
+                    st.code(str(e))
 
 
 # ==================================================
@@ -469,7 +512,8 @@ with tab2:
 st.divider()
 
 st.markdown(
-    "<div class='footer'>"
+    "<div style='text-align:center; color:#71869f; "
+    "font-size:12px; padding:15px;'>"
     "配电网自动化技术智能体 | POWER GRID AI ASSISTANT"
     "<br>"
     "课程设计项目 · 智能化电力技术学习平台"

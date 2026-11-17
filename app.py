@@ -1,9 +1,12 @@
 
 import os
+import time
 import streamlit as st
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+
+# ==================== 基础配置 ====================
 
 load_dotenv()
 
@@ -150,7 +153,7 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
 """, unsafe_allow_html=True)
 
 
-# ==================== AI 初始化 ====================
+# ==================== API 初始化 ====================
 
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
@@ -162,12 +165,58 @@ if not api_key:
     st.stop()
 
 client = genai.Client(api_key=api_key)
+
 MODEL_NAME = "gemini-3.5-flash"
+
+
+# ==================== AI 请求函数 ====================
+
+def generate_with_retry(contents, max_retries=3):
+
+    for attempt in range(max_retries):
+
+        try:
+            response = client.models.generate_content(
+                model=MODEL_NAME,
+                contents=contents
+            )
+
+            if not response or not response.text:
+                raise Exception("AI 未返回有效内容，请重新尝试。")
+
+            return response
+
+        except Exception as e:
+
+            error_message = str(e).upper()
+
+            # 服务器繁忙或暂时不可用
+            if (
+                "503" in error_message
+                or "UNAVAILABLE" in error_message
+                or "429" in error_message
+                or "RESOURCE_EXHAUSTED" in error_message
+            ):
+
+                if attempt < max_retries - 1:
+                    wait_time = 2 * (attempt + 1)
+
+                    time.sleep(wait_time)
+
+                else:
+                    raise Exception(
+                        "Gemini 服务器暂时繁忙或请求次数达到限制。"
+                        "请稍后再试。"
+                    )
+
+            else:
+                raise e
 
 
 # ==================== 侧边栏 ====================
 
 with st.sidebar:
+
     st.markdown("## ⚡ 电力智能实验室")
     st.caption("POWER GRID AI ASSISTANT")
 
@@ -180,11 +229,12 @@ with st.sidebar:
     st.divider()
 
     st.markdown("### 系统状态")
-    st.success("AI 服务已连接")
+    st.success("API 密钥已加载")
     st.caption("当前模型：Gemini 3.5 Flash")
-    st.caption("服务状态：在线")
+    st.caption("AI 服务：按需连接")
 
     st.divider()
+
     st.caption("配电网自动化技术")
     st.caption("课程设计项目 · 2026")
 
@@ -242,10 +292,15 @@ tab1, tab2 = st.tabs([
 # ==================== 智能问答 ====================
 
 with tab1:
-    st.markdown('<div class="section-title">专业知识智能问答</div>',
-                unsafe_allow_html=True)
 
-    st.caption("请输入电力系统、配电网自动化或电气工程相关问题。")
+    st.markdown(
+        '<div class="section-title">专业知识智能问答</div>',
+        unsafe_allow_html=True
+    )
+
+    st.caption(
+        "请输入电力系统、配电网自动化或电气工程相关问题。"
+    )
 
     question = st.text_area(
         "问题内容",
@@ -255,32 +310,46 @@ with tab1:
     )
 
     if st.button("🚀 发送问题", key="ask_button"):
+
         if question.strip():
+
             with st.spinner("AI 正在分析问题，请稍候..."):
+
                 try:
-                    response = client.models.generate_content(
-                        model=MODEL_NAME,
-                        contents=(
-                            "你是一名专业的配电网自动化技术助手。"
-                            "请使用简体中文回答。"
-                            "要求专业、准确、容易理解。"
-                            "注意区分光纤通信和光伏发电等专业术语。"
-                            "涉及计算时，请列出公式、已知条件、计算步骤和结果。"
-                            "如果问题存在条件不足，请明确说明。"
-                            "\n\n用户问题："
-                            + question
-                        )
+
+                    prompt = (
+                        "你是一名专业的配电网自动化技术助手。"
+                        "请使用简体中文回答。"
+                        "要求专业、准确、容易理解。"
+                        "注意区分光纤通信和光伏发电等专业术语。"
+                        "涉及计算时，请列出公式、已知条件、计算步骤和结果。"
+                        "如果问题存在条件不足，请明确说明。"
+                        "\n\n用户问题："
+                        + question
                     )
 
+                    response = generate_with_retry(prompt)
+
                     st.markdown("### 📘 AI 分析结果")
-                    st.markdown('<div class="answer-box">',
-                                unsafe_allow_html=True)
+
+                    st.markdown(
+                        '<div class="answer-box">',
+                        unsafe_allow_html=True
+                    )
+
                     st.markdown(response.text)
-                    st.markdown('</div>', unsafe_allow_html=True)
+
+                    st.markdown(
+                        '</div>',
+                        unsafe_allow_html=True
+                    )
 
                 except Exception as e:
-                    st.error("AI 请求失败，请稍后重试。")
-                    st.code(str(e))
+
+                    st.error("AI 请求失败")
+
+                    st.warning(str(e))
+
         else:
             st.warning("请先输入问题！")
 
@@ -288,10 +357,15 @@ with tab1:
 # ==================== 图片题目求解 ====================
 
 with tab2:
-    st.markdown('<div class="section-title">图片识别与智能解题</div>',
-                unsafe_allow_html=True)
 
-    st.caption("上传电气工程或配电网自动化相关题目图片，AI 将识别并分析。")
+    st.markdown(
+        '<div class="section-title">图片识别与智能解题</div>',
+        unsafe_allow_html=True
+    )
+
+    st.caption(
+        "上传电气工程或配电网自动化相关题目图片，AI 将识别并分析。"
+    )
 
     image = st.file_uploader(
         "上传题目图片",
@@ -301,6 +375,7 @@ with tab2:
     )
 
     if image is not None:
+
         st.image(
             image,
             caption="题目预览",
@@ -308,35 +383,51 @@ with tab2:
         )
 
         if st.button("🔍 开始识别与解答", key="image_button"):
+
             with st.spinner("AI 正在识别图片并分析题目..."):
+
                 try:
+
                     image_part = types.Part.from_bytes(
                         data=image.getvalue(),
                         mime_type=image.type
                     )
 
-                    response = client.models.generate_content(
-                        model=MODEL_NAME,
+                    prompt = (
+                        "请识别图片中的题目，并使用简体中文解答。"
+                        "先准确提取题目内容，再分析已知条件。"
+                        "然后逐步说明解题思路、相关公式和计算过程。"
+                        "涉及电路图时，请分析元件连接关系。"
+                        "最后给出明确答案。"
+                        "如果图片模糊或信息不足，请指出。"
+                    )
+
+                    response = generate_with_retry(
                         contents=[
-                            "请识别图片中的题目，并使用简体中文解答。"
-                            "先准确提取题目内容，再分析已知条件。"
-                            "然后逐步说明解题思路、相关公式和计算过程。"
-                            "涉及电路图时，请分析元件连接关系。"
-                            "最后给出明确答案。"
-                            "如果图片模糊或信息不足，请指出。",
+                            prompt,
                             image_part
                         ]
                     )
 
                     st.markdown("### 📝 题目分析与解答")
-                    st.markdown('<div class="answer-box">',
-                                unsafe_allow_html=True)
+
+                    st.markdown(
+                        '<div class="answer-box">',
+                        unsafe_allow_html=True
+                    )
+
                     st.markdown(response.text)
-                    st.markdown('</div>', unsafe_allow_html=True)
+
+                    st.markdown(
+                        '</div>',
+                        unsafe_allow_html=True
+                    )
 
                 except Exception as e:
-                    st.error("图片识别失败，请稍后重试。")
-                    st.code(str(e))
+
+                    st.error("图片识别失败")
+
+                    st.warning(str(e))
 
 
 # ==================== 页脚 ====================

@@ -1,14 +1,13 @@
 
 import os
-import time
 import streamlit as st
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-# ==============================
+# ==========================================
 # 1. 基本配置
-# ==============================
+# ==========================================
 
 load_dotenv()
 
@@ -18,111 +17,197 @@ st.set_page_config(
     layout="wide"
 )
 
-MODEL_NAME = "gemini-3.5-flash"
+# 修改 Gemini 模型只需要修改这一行
+MODEL_NAME = "gemini-3.1-flash-lite"
 
-# ==============================
+# ==========================================
 # 2. API 配置
-# ==============================
+# ==========================================
 
 try:
-    api_key = st.secrets["GEMINI_API_KEY"]
+    API_KEY = st.secrets["GEMINI_API_KEY"]
 except Exception:
-    api_key = os.getenv("GEMINI_API_KEY")
+    API_KEY = os.getenv("GEMINI_API_KEY")
 
-if not api_key:
-    st.error("未找到 Gemini API Key，请检查 Secrets 配置。")
+if not API_KEY:
+    st.error("未找到 Gemini API Key，请检查 Streamlit Secrets。")
     st.stop()
 
-client = genai.Client(api_key=api_key)
+client = genai.Client(api_key=API_KEY)
 
-# ==============================
+# ==========================================
 # 3. 页面样式
-# ==============================
+# ==========================================
 
 st.markdown("""
 <style>
+
+/* 页面整体 */
 .stApp {
-    background-color: #0b1220;
-    color: #e5e7eb;
+    background-color: #F4F7FB;
+    color: #172B4D;
 }
 
+/* 主内容 */
+.main .block-container {
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+    max-width: 1200px;
+}
+
+/* 侧边栏 */
 section[data-testid="stSidebar"] {
-    background-color: #111c30;
+    background-color: #E8F0FA;
+    border-right: 1px solid #C8D7EA;
 }
 
+section[data-testid="stSidebar"] * {
+    color: #172B4D !important;
+}
+
+/* 主标题 */
 .main-title {
-    font-size: 32px;
-    font-weight: 700;
-    color: #60a5fa;
     text-align: center;
+    color: #124A8C;
+    font-size: 32px;
+    font-weight: 800;
     margin-bottom: 8px;
 }
 
 .sub-title {
-    color: #94a3b8;
     text-align: center;
+    color: #405875;
     font-size: 15px;
-    margin-bottom: 30px;
+    margin-bottom: 28px;
 }
 
-.answer-box {
-    background-color: #142238;
-    border: 1px solid #263b59;
+/* 卡片 */
+.answer-card {
+    background-color: #FFFFFF;
+    border: 1px solid #C9D8EA;
     border-radius: 12px;
-    padding: 20px;
-    min-height: 180px;
+    padding: 22px;
+    min-height: 220px;
+    box-shadow: 0 2px 8px rgba(20, 55, 90, 0.06);
 }
 
-.answer-title {
-    color: #60a5fa;
-    font-size: 20px;
-    font-weight: bold;
-    margin-bottom: 15px;
+/* Tiêu đề trong card */
+.answer-heading {
+    font-size: 21px;
+    font-weight: 800;
+    color: #1555A0;
+    border-bottom: 2px solid #D9E7F7;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
 }
 
+/* Nội dung */
+.answer-content {
+    color: #172B4D;
+    font-size: 16px;
+    line-height: 1.85;
+}
+
+/* Tất cả nội dung Markdown */
+.stMarkdown,
+.stMarkdown p,
+.stMarkdown li,
+.stMarkdown span {
+    color: #172B4D;
+}
+
+/* Tiêu đề */
+h1, h2, h3 {
+    color: #124A8C !important;
+    font-weight: 750 !important;
+}
+
+/* Input */
+.stTextArea textarea {
+    background-color: #FFFFFF !important;
+    color: #172B4D !important;
+    border: 1px solid #A9BED8 !important;
+    border-radius: 9px !important;
+    font-size: 16px !important;
+}
+
+.stTextArea textarea::placeholder {
+    color: #64748B !important;
+}
+
+/* Button */
 .stButton button {
-    background-color: #2563eb;
-    color: white;
-    border-radius: 8px;
+    background-color: #1765B5;
+    color: #FFFFFF !important;
     border: none;
-    font-weight: bold;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 10px 20px;
 }
 
 .stButton button:hover {
-    background-color: #1d4ed8;
-    color: white;
+    background-color: #104B8A;
+    color: #FFFFFF !important;
 }
+
+/* Tabs */
+.stTabs [data-baseweb="tab"] {
+    color: #334B68 !important;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.stTabs [aria-selected="true"] {
+    color: #1555A0 !important;
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    color: #526780;
+    font-size: 13px;
+    padding: 20px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
-# ==============================
+# ==========================================
 # 4. 侧边栏
-# ==============================
+# ==========================================
 
 with st.sidebar:
+
     st.markdown("## ⚡ 配电网 AI 助手")
-    st.markdown("---")
+
+    st.divider()
 
     st.markdown("### 系统信息")
 
-    # 调试信息：检查实际运行的模型
-    st.write("DEBUG MODEL:", MODEL_NAME)
+    st.write("**AI 模型：**")
+    st.code(MODEL_NAME)
 
-    st.caption("AI 模型：" + MODEL_NAME)
-    st.caption("系统版本：1.0")
+    st.write("**系统版本：** 2.0")
 
-    st.markdown("---")
+    st.divider()
 
     st.markdown("### 功能介绍")
-    st.write("💬 智能问答")
-    st.write("📷 图片题目求解")
 
-    st.markdown("---")
+    st.markdown("""
+    - 💬 智能问答
+    - 📷 图片题目求解
+    - 🇨🇳 中文知识讲解
+    - 🇻🇳 越南语翻译
+    """)
+
+    st.divider()
+
     st.caption("配电网自动化技术智能体")
 
-# ==============================
+# ==========================================
 # 5. 页面标题
-# ==============================
+# ==========================================
 
 st.markdown(
     '<div class="main-title">⚡ 配电网自动化技术智能体</div>',
@@ -131,219 +216,206 @@ st.markdown(
 
 st.markdown(
     '<div class="sub-title">'
-    'Distribution Network Automation AI Assistant'
+    '专业知识问答 · 图片识别 · 双语解答'
     '</div>',
     unsafe_allow_html=True
 )
 
-# ==============================
+# ==========================================
 # 6. AI 请求函数
-# ==============================
+# ==========================================
 
-def generate_with_retry(contents, max_retries=3):
+def generate_answer(contents):
 
-    last_error = None
+    try:
 
-    for attempt in range(max_retries):
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=contents
+        )
 
-        try:
-            response = client.models.generate_content(
-                model=MODEL_NAME,
-                contents=contents
+        if not response or not response.text:
+            raise Exception("AI 未返回有效内容。")
+
+        return response.text
+
+    except Exception as e:
+
+        error = str(e)
+        upper_error = error.upper()
+
+        if "429" in upper_error or "RESOURCE_EXHAUSTED" in upper_error:
+            raise Exception(
+                "Gemini API 请求额度不足或达到速率限制。"
+                "请检查当前模型的配额和重置时间。\n\n"
+                + error
             )
 
-            if not response or not response.text:
-                raise Exception("AI 未返回有效内容，请重新尝试。")
-
-            return response.text
-
-        except Exception as e:
-
-            last_error = e
-            error_message = str(e)
-            error_upper = error_message.upper()
-
-            # 每日免费额度耗尽，不进行无意义重试
-            if (
-                "GENERATEREQUESTSPERDAY" in error_upper
-                or "PER DAY" in error_upper
-                or "QUOTA EXCEEDED" in error_upper
-            ):
-                raise Exception(
-                    "Gemini API 免费每日请求额度已用完。\n\n"
-                    "请等待额度重置，或检查 Google AI Studio 的配额。\n\n"
-                    f"原始错误：{error_message}"
-                )
-
-            # 判断是否属于临时错误
-            retryable = (
-                "503" in error_upper
-                or "UNAVAILABLE" in error_upper
-                or "500" in error_upper
-                or "INTERNAL" in error_upper
-                or "DEADLINE_EXCEEDED" in error_upper
+        if "404" in upper_error or "NOT_FOUND" in upper_error:
+            raise Exception(
+                "当前 Gemini 模型不可用或没有访问权限。"
+                "请检查模型名称。\n\n"
+                + error
             )
 
-            if not retryable or attempt == max_retries - 1:
-                break
+        raise Exception("Gemini API 请求失败：\n" + error)
 
-            wait_time = 2 ** (attempt + 1)
+# ==========================================
+# 7. 生成双语提示词
+# ==========================================
 
-            st.warning(
-                f"服务器暂时繁忙，第 {attempt + 1} 次请求失败，"
-                f"将在 {wait_time} 秒后重试。"
-            )
-
-            time.sleep(wait_time)
-
-    raise Exception(
-        f"Gemini API 请求失败，共尝试 {max_retries} 次。\n\n"
-        f"原始错误：{last_error}"
-    )
-
-# ==============================
-# 7. 双语答案处理
-# ==============================
-
-def display_bilingual_answer(answer):
-
-    chinese_answer = ""
-    vietnamese_answer = ""
-
-    if "【中文回答】" in answer and "【越南语回答】" in answer:
-
-        parts = answer.split("【越南语回答】", 1)
-
-        chinese_answer = parts[0].replace(
-            "【中文回答】", ""
-        ).strip()
-
-        vietnamese_answer = parts[1].strip()
-
-    else:
-        chinese_answer = answer
-        vietnamese_answer = (
-            "AI 未能按照指定格式分开回答，"
-            "请查看左侧原始回答。"
-        )
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown(
-            '<div class="answer-box">',
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            '<div class="answer-title">🇨🇳 中文回答</div>',
-            unsafe_allow_html=True
-        )
-        st.markdown(chinese_answer)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with col2:
-        st.markdown(
-            '<div class="answer-box">',
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            '<div class="answer-title">🇻🇳 越南语回答</div>',
-            unsafe_allow_html=True
-        )
-        st.markdown(vietnamese_answer)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# ==============================
-# 8. 回答格式要求
-# ==============================
-
-def make_prompt(question):
+def build_prompt(question):
 
     return f"""
-你是一名专业的配电网自动化技术专家和大学教师。
+你是一名专业的配电网自动化技术专家，
+同时也是一名大学电气工程教师。
 
-请认真回答用户的问题：
+请回答以下问题：
 
 {question}
 
 回答要求：
 
-1. 使用简体中文和越南语回答。
-2. 中文和越南语内容必须保持一致。
-3. 先解释基本概念，再解释工作原理。
-4. 如果涉及计算题，必须列出公式、代入过程和最终答案。
-5. 如果涉及电路、电力系统或自动化设备，
-   应尽可能解释其物理原理。
-6. 内容准确、清晰，适合大学电气工程专业学生学习。
-7. 不要编造数据或不存在的公式。
+一、中文部分：
+1. 使用规范、自然的简体中文。
+2. 先解释基本概念，再讲解工作原理。
+3. 涉及计算时，写出公式、代入过程和结果。
+4. 涉及电路时，解释电流、电压和能量的物理意义。
+5. 内容准确、清楚，适合大学生学习。
 
-请严格按照以下格式回答：
+二、越南语部分：
+1. 将上面的中文答案完整翻译成越南语。
+2. 保持原意、公式、数据和步骤一致。
+3. 使用自然、容易理解的越南语。
+
+必须严格使用以下格式：
 
 【中文回答】
-这里写完整的简体中文答案。
+在这里写完整的中文答案。
 
-【越南语回答】
-这里写完整的越南语答案。
+【越南语翻译】
+在这里写完整的越南语翻译。
 """
 
-# ==============================
+# ==========================================
+# 8. 显示双语答案
+# ==========================================
+
+def display_answer(answer):
+
+    if "【中文回答】" not in answer or "【越南语翻译】" not in answer:
+
+        st.warning("AI 返回格式不完整，以下显示原始回答。")
+        st.markdown(answer)
+        return
+
+    parts = answer.split("【越南语翻译】", 1)
+
+    chinese = parts[0].split("【中文回答】", 1)[1].strip()
+    vietnamese = parts[1].strip()
+
+    # 两个独立的答案区域
+    tab_cn, tab_vi = st.tabs([
+        "🇨🇳 中文回答",
+        "🇻🇳 越南语翻译"
+    ])
+
+    with tab_cn:
+
+        st.markdown(
+            '<div class="answer-card">'
+            '<div class="answer-heading">🇨🇳 中文回答</div>'
+            '<div class="answer-content">',
+            unsafe_allow_html=True
+        )
+
+        st.markdown(chinese)
+
+        st.markdown("</div></div>", unsafe_allow_html=True)
+
+    with tab_vi:
+
+        st.markdown(
+            '<div class="answer-card">'
+            '<div class="answer-heading">🇻🇳 越南语翻译</div>'
+            '<div class="answer-content">',
+            unsafe_allow_html=True
+        )
+
+        st.markdown(vietnamese)
+
+        st.markdown("</div></div>", unsafe_allow_html=True)
+
+# ==========================================
 # 9. 功能选项卡
-# ==============================
+# ==========================================
 
 tab1, tab2 = st.tabs([
     "💬 智能问答",
     "📷 图片题目求解"
 ])
 
-# ==============================
+# ==========================================
 # 10. 智能问答
-# ==============================
+# ==========================================
 
 with tab1:
 
-    st.subheader("💬 配电网自动化智能问答")
+    st.subheader("💬 智能问答")
 
-    question = st.text_area(
-        "请输入您的问题：",
-        placeholder="例如：什么是配电网自动化？",
-        height=130,
-        key="text_question"
+    st.write(
+        "请输入与配电网自动化、电力系统、电气工程相关的问题。"
     )
 
-    if st.button("🚀 提交问题", key="ask_button"):
+    question = st.text_area(
+        "问题内容",
+        placeholder="例如：什么是配电网自动化？它有哪些主要功能？",
+        height=150,
+        key="question_input"
+    )
+
+    if st.button("🚀 提交问题", key="submit_question"):
 
         if not question.strip():
+
             st.warning("请先输入问题。")
 
         else:
 
-            with st.spinner("AI 正在思考，请稍候..."):
+            with st.spinner("AI 正在分析问题，请稍候..."):
 
                 try:
-                    prompt = make_prompt(question)
 
-                    answer = generate_with_retry(prompt)
+                    prompt = build_prompt(question)
+
+                    answer = generate_answer(prompt)
 
                     st.success("回答完成！")
 
-                    display_bilingual_answer(answer)
+                    display_answer(answer)
 
                 except Exception as e:
-                    st.error("AI 请求失败")
+
+                    st.error("请求失败")
                     st.code(str(e))
 
-# ==============================
+# ==========================================
 # 11. 图片题目求解
-# ==============================
+# ==========================================
 
 with tab2:
 
-    st.subheader("📷 上传图片，自动识别并解答题目")
+    st.subheader("📷 图片题目求解")
+
+    st.write(
+        "上传电气工程或配电网自动化相关题目图片，"
+        "AI 将识别题目并给出详细解答。"
+    )
 
     uploaded_file = st.file_uploader(
-        "请选择题目图片：",
+        "上传题目图片",
         type=["png", "jpg", "jpeg"],
-        help="支持 PNG、JPG 和 JPEG 格式"
+        help="支持 PNG、JPG、JPEG 格式"
     )
 
     if uploaded_file is not None:
@@ -354,11 +426,12 @@ with tab2:
             use_container_width=True
         )
 
-        if st.button("🔍 识别并解答", key="image_button"):
+        if st.button("🔍 识别并解答", key="solve_image"):
 
-            with st.spinner("AI 正在识别图片并解答..."):
+            with st.spinner("AI 正在识别图片并分析题目..."):
 
                 try:
+
                     image_bytes = uploaded_file.getvalue()
 
                     image_part = types.Part.from_bytes(
@@ -367,50 +440,53 @@ with tab2:
                     )
 
                     image_prompt = """
-你是一名专业的配电网自动化技术教师。
+你是一名专业的电气工程和配电网自动化技术教师。
 
-请识别图片中的题目，并完成以下任务：
+请认真识别图片中的题目，并完成以下任务：
 
-1. 准确提取图片中的题目内容。
-2. 分析题目要求。
-3. 给出详细解题步骤。
-4. 如果涉及计算，写出公式、代入过程和最终答案。
-5. 如果涉及电路图，请分析电路结构和工作原理。
-6. 使用简体中文和越南语回答。
-7. 两种语言的内容必须一致。
+1. 提取图片中的完整题目。
+2. 分析题目所考查的知识点。
+3. 给出详细的解题过程。
+4. 涉及计算时，写出公式、代入步骤和最终结果。
+5. 涉及电路图时，分析电路结构和工作原理。
+6. 如果图片不清晰或信息不足，请明确指出，不要猜测。
 
-请严格按照以下格式：
+请分别使用简体中文和越南语回答。
+
+格式必须为：
 
 【中文回答】
-题目识别结果、分析过程和完整答案。
+题目识别、知识点分析、详细解题过程和答案。
 
-【越南语回答】
-题目识别结果、分析过程和完整答案。
+【越南语翻译】
+以上全部内容的完整越南语翻译。
 """
 
-                    answer = generate_with_retry([
+                    answer = generate_answer([
                         image_prompt,
                         image_part
                     ])
 
                     st.success("图片识别与解答完成！")
 
-                    display_bilingual_answer(answer)
+                    display_answer(answer)
 
                 except Exception as e:
+
                     st.error("图片识别或解答失败")
                     st.code(str(e))
 
-# ==============================
+# ==========================================
 # 12. 页面底部
-# ==============================
+# ==========================================
 
 st.markdown("---")
 
 st.markdown(
     """
-    <div style="text-align:center;color:#64748b;font-size:13px;">
-        配电网自动化技术智能体 | Powered by Gemini API
+    <div class="footer">
+        ⚡ 配电网自动化技术智能体<br>
+        Powered by Gemini API
     </div>
     """,
     unsafe_allow_html=True

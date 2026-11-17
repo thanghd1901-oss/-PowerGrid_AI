@@ -13,7 +13,7 @@ from google.genai import types
 load_dotenv()
 
 st.set_page_config(
-    page_title="配电网智能助手",
+    page_title="配电网自动化技术智能体",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -25,7 +25,6 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-
 .stApp {
     background-color: #0b1220;
     color: #e5edf7;
@@ -46,31 +45,16 @@ st.markdown("""
     padding-bottom: 3rem;
 }
 
-.hero {
-    background: linear-gradient(120deg, #142b4a, #123e63);
-    border: 1px solid #28547a;
-    border-radius: 18px;
-    padding: 30px;
-    margin-bottom: 25px;
-}
-
-.hero h1 {
-    color: white;
-    font-size: 32px;
-    margin-bottom: 8px;
-}
-
-.hero p {
-    color: #b7cce3;
-    font-size: 15px;
+h1, h2, h3 {
+    color: #e9f3ff;
 }
 
 .info-card {
     background: #142137;
     border: 1px solid #263d5b;
     border-radius: 14px;
-    padding: 20px;
-    min-height: 115px;
+    padding: 18px;
+    min-height: 105px;
 }
 
 .info-title {
@@ -83,14 +67,6 @@ st.markdown("""
     font-size: 21px;
     font-weight: 650;
     margin-top: 9px;
-}
-
-.section-title {
-    color: #e9f3ff;
-    font-size: 21px;
-    font-weight: 650;
-    margin-top: 10px;
-    margin-bottom: 15px;
 }
 
 .stTextArea textarea {
@@ -117,7 +93,6 @@ st.markdown("""
 .stButton > button:hover {
     background: linear-gradient(90deg, #0799d7, #25bce9);
     color: white;
-    border: none;
 }
 
 [data-testid="stFileUploader"] {
@@ -140,19 +115,25 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
     color: #35b9ed;
 }
 
+.answer-panel {
+    background-color: #13243a;
+    border: 1px solid #263d5b;
+    border-radius: 12px;
+    padding: 18px;
+}
+
 .footer {
     color: #71869f;
     text-align: center;
     font-size: 12px;
     padding-top: 25px;
 }
-
 </style>
 """, unsafe_allow_html=True)
 
 
 # ==================================================
-# 3. Gemini API 初始化
+# 3. GEMINI API 初始化
 # ==================================================
 
 try:
@@ -204,15 +185,12 @@ def generate_with_retry(contents, max_retries=3):
             if temporary_error:
 
                 if attempt < max_retries - 1:
-
                     wait_time = 2 * (attempt + 1)
-
                     time.sleep(wait_time)
 
                 else:
-
                     raise Exception(
-                        "Gemini 服务器暂时繁忙或请求次数达到限制。"
+                        "Gemini 服务器暂时繁忙或请求次数达到限制，"
                         "请稍后再试。"
                     )
 
@@ -221,7 +199,7 @@ def generate_with_retry(contents, max_retries=3):
 
 
 # ==================================================
-# 5. 双语答案显示函数
+# 5. 双语答案显示
 # ==================================================
 
 def display_bilingual_answer(answer):
@@ -242,14 +220,12 @@ def display_bilingual_answer(answer):
         col1, col2 = st.columns(2, gap="medium")
 
         with col1:
-
             st.markdown("### 🇨🇳 中文回答")
 
             with st.container(border=True):
                 st.markdown(chinese_text)
 
         with col2:
-
             st.markdown("### 🇻🇳 Trả lời tiếng Việt")
 
             with st.container(border=True):
@@ -277,10 +253,8 @@ with st.sidebar:
     st.divider()
 
     st.markdown("### 系统导航")
-
-    st.markdown("💬  智能问答")
-
-    st.markdown("📷  图片题目求解")
+    st.markdown("💬 智能问答")
+    st.markdown("📷 图片题目求解")
 
     st.divider()
 
@@ -289,76 +263,55 @@ with st.sidebar:
     st.success("API 密钥已加载")
 
     st.caption("当前模型：Gemini 3.5 Flash")
-
     st.caption("回答语言：简体中文 + 越南语")
-
     st.caption("服务状态：按需连接")
 
     st.divider()
 
     st.caption("配电网自动化技术")
-
     st.caption("课程设计项目 · 2026")
 
 
 # ==================================================
-# 7. 首页
+# 7. 首页标题
 # ==================================================
 
-st.markdown("""
-<div class="hero">
+with st.container(border=True):
 
-    <h1>⚡ 配电网自动化技术智能体</h1>
+    st.title("⚡ 配电网自动化技术智能体")
 
-    <p>专业知识问答 · 图片识别 · 智能分析 · 辅助学习</p>
+    st.markdown(
+        "专业知识问答 · 图片识别 · 智能分析 · 辅助学习"
+    )
 
-    <p>POWER DISTRIBUTION AUTOMATION INTELLIGENT SYSTEM</p>
-
-</div>
-""", unsafe_allow_html=True)
+    st.caption(
+        "POWER DISTRIBUTION AUTOMATION INTELLIGENT SYSTEM"
+    )
 
 
 # ==================================================
-# 8. 信息卡片
+# 8. 系统功能卡片
 # ==================================================
 
 c1, c2, c3 = st.columns(3)
 
 with c1:
-
-    st.markdown("""
-    <div class="info-card">
-
-        <div class="info-title">系统功能</div>
-
-        <div class="info-value">智能知识问答</div>
-
-    </div>
-    """, unsafe_allow_html=True)
+    with st.container(border=True):
+        st.caption("系统功能")
+        st.subheader("智能知识问答")
+        st.write("💬 专业知识咨询")
 
 with c2:
-
-    st.markdown("""
-    <div class="info-card">
-
-        <div class="info-title">图像处理</div>
-
-        <div class="info-value">题目识别与求解</div>
-
-    </div>
-    """, unsafe_allow_html=True)
+    with st.container(border=True):
+        st.caption("图像处理")
+        st.subheader("题目识别与求解")
+        st.write("📷 图片上传与分析")
 
 with c3:
-
-    st.markdown("""
-    <div class="info-card">
-
-        <div class="info-title">AI 服务</div>
-
-        <div class="info-value">Gemini AI</div>
-
-    </div>
-    """, unsafe_allow_html=True)
+    with st.container(border=True):
+        st.caption("AI 服务")
+        st.subheader("Gemini AI")
+        st.write("⚡ 智能分析引擎")
 
 st.write("")
 
@@ -368,8 +321,8 @@ st.write("")
 # ==================================================
 
 tab1, tab2 = st.tabs([
-    "💬  智能问答",
-    "📷  图片题目求解"
+    "💬 智能问答",
+    "📷 图片题目求解"
 ])
 
 
@@ -379,10 +332,7 @@ tab1, tab2 = st.tabs([
 
 with tab1:
 
-    st.markdown(
-        '<div class="section-title">专业知识智能问答</div>',
-        unsafe_allow_html=True
-    )
+    st.subheader("专业知识智能问答")
 
     st.caption(
         "请输入电力系统、配电网自动化或电气工程相关问题。"
@@ -405,35 +355,21 @@ with tab1:
 
                     prompt = (
                         "你是一名专业的配电网自动化技术助手。"
-
                         "请使用简体中文和越南语双语回答。"
-
                         "必须严格按照以下格式输出："
-
                         "【中文回答】"
-
-                        "第一部分：用简体中文完整回答问题。"
-
-                        "第二部分：详细解释专业知识和原理。"
-
-                        "第三部分：如果涉及计算，请列出公式、"
-                        "已知条件、计算步骤和结果。"
-
+                        "先用简体中文完整回答问题。"
+                        "解释相关专业知识、工作原理和应用。"
+                        "涉及计算时，请列出公式、已知条件、"
+                        "计算步骤和结果。"
                         "【越南语回答】"
-
-                        "将以上全部内容准确翻译成越南语。"
-
+                        "将中文内容完整、准确地翻译成越南语。"
                         "两种语言的内容必须完整对应，"
-                        "不能省略重要信息。"
-
+                        "公式、数据和计算结果必须一致。"
                         "要求专业、准确、容易理解。"
-
                         "注意区分光纤通信和光伏发电等专业术语。"
-
                         "如果问题存在条件不足，请明确说明。"
-
                         "\n\n用户问题："
-
                         + question
                     )
 
@@ -446,7 +382,6 @@ with tab1:
                 except Exception as e:
 
                     st.error("AI 请求失败")
-
                     st.warning(str(e))
 
         else:
@@ -460,10 +395,7 @@ with tab1:
 
 with tab2:
 
-    st.markdown(
-        '<div class="section-title">图片识别与智能解题</div>',
-        unsafe_allow_html=True
-    )
+    st.subheader("图片识别与智能解题")
 
     st.caption(
         "上传电气工程或配电网自动化相关题目图片，AI 将识别并分析。"
@@ -496,32 +428,20 @@ with tab2:
                     )
 
                     prompt = (
-
                         "请识别图片中的题目，"
                         "并使用简体中文和越南语双语解答。"
-
                         "必须严格按照以下格式输出："
-
                         "【中文回答】"
-
                         "第一部分：准确提取图片中的题目内容。"
-
                         "第二部分：分析已知条件。"
-
                         "第三部分：逐步说明解题思路、"
                         "相关公式和计算过程。"
-
                         "第四部分：给出明确答案。"
-
                         "【越南语回答】"
-
                         "将以上全部内容准确翻译成越南语。"
-
                         "两种语言的公式、数据、单位和计算结果"
                         "必须保持一致。"
-
                         "涉及电路图时，请分析元件连接关系。"
-
                         "如果图片模糊或信息不足，请明确指出。"
                     )
 
@@ -539,7 +459,6 @@ with tab2:
                 except Exception as e:
 
                     st.error("图片识别失败")
-
                     st.warning(str(e))
 
 
@@ -547,14 +466,13 @@ with tab2:
 # 12. 页脚
 # ==================================================
 
-st.markdown("""
-<div class="footer">
+st.divider()
 
-    配电网自动化技术智能体 | POWER GRID AI ASSISTANT
-
-    <br>
-
-    课程设计项目 · 智能化电力技术学习平台
-
-</div>
-""", unsafe_allow_html=True)
+st.markdown(
+    "<div class='footer'>"
+    "配电网自动化技术智能体 | POWER GRID AI ASSISTANT"
+    "<br>"
+    "课程设计项目 · 智能化电力技术学习平台"
+    "</div>",
+    unsafe_allow_html=True
+)

@@ -152,10 +152,13 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
 
 # ==================== AI 初始化 ====================
 
-api_key = os.getenv("GEMINI_API_KEY")
+try:
+    api_key = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    api_key = os.getenv("GEMINI_API_KEY")
 
 if not api_key:
-    st.error("未找到 API 密钥，请检查 .env 文件。")
+    st.error("未找到 API 密钥，请检查 Streamlit Secrets 设置。")
     st.stop()
 
 client = genai.Client(api_key=api_key)
